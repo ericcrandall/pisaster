@@ -1,0 +1,382 @@
+---
+title: "Pisaster Migrate Analysis"
+output: html_notebook
+---
+
+## Harvest Marginal Likelihoods
+
+```{r}
+library(ggplot2)
+
+```
+
+#### A function for calculating model selection statistics
+```{r}
+bfcalcs<-function(df,ml="bezier.corrected"){
+  df$thermodynamic<-as.numeric(df$thermodynamic)
+  df$bezier.corrected<-as.numeric(df$bezier.corrected)
+  df$harmonic<-as.numeric(df$harmonic)
+    mlcol<-df[,ml] 
+	bmvalue<-mlcol[which.max(mlcol)]
+	lbf<-2*(mlcol-bmvalue)
+	choice<-rank(-mlcol)
+	modelprob<-exp(lbf/2)/sum(exp(lbf/2))
+	dfall<-cbind(df,lbf,choice,modelprob)
+	return(dfall)
+}	
+```
+
+
+Here I am going through the three runs and harvesting out the likelihoods into a likelists object.
+
+```{r harvest_likelihoods}
+wd<-"~/Datasets/pisaster/migrate_second_round/final_runs"
+setwd(wd)
+likelists<-list()
+#grab the model names from the directory, removing the self referential directory
+setwd(file.path(wd,"rep1"))
+models <- list.dirs(".", full.names = F)[-1]
+setwd("../")
+
+for(r in 1:3){
+  wd1<-paste(wd,"/rep",r,sep="")
+  setwd(wd1)
+  # start here if you just want to do one replicate
+  likelist<-list() #initialize an empty list
+  
+    
+    marglike<-data.frame(model=character(0),thermodynamic=numeric(0),bezier.corrected=numeric(0),harmonic.mean=numeric(0),stringsAsFactors=F) #initialize a data frame to take the values
+    
+    l=1 #initialize l
+    
+    for(i in models){
+      wd3<-file.path(wd1,i)
+      print(wd3)
+      if(!file.exists(wd3)){next}
+      setwd(wd3)
+      outfile<-scan(file="outfile.txt",what="character",sep="\n") #scan in the outfile, separating at each newline
+      
+
+      
+      #get the result from thermodynamic integration
+      thermoline<-grep("(1a)",outfile,value=T) #find the line with the thermodynamic likelihood on it
+      if(length(thermoline)==0){next}
+      thermoline<-strsplit(thermoline,split="=",fixed=T) #split it up
+      thermo<-as.numeric(substr(thermoline[[1]][2],start=1,stop=12)) #grab the thermodynamic likelihood
+      bezistart<-grep("\\(",strsplit(thermoline[[1]][2],split="")[[1]])+1
+      bezier<-as.numeric(substr(thermoline[[1]][2],start=bezistart,stop=bezistart+11)) #and the bezier-corrected value
+      #get the harmonic mean
+      harmoline<-grep("\\(2\\) H",outfile,value=T) #find the line with harmonic mean likelihood on it
+      harmoline<-strsplit(harmoline,split="=",fixed=T) #grab the harmonic mean
+      harmo<-as.numeric(substr(harmoline[[1]][2],start=1,stop=12))
+      marglike[l,]<-c(i,thermo,bezier,harmo) #add this as a row to the data frame
+      l=l+1
+    }
+    
+    
+    
+
+  
+# stop here if you just want one round  
+  likelists[[r]]<-marglike
+}
+
+setwd(wd)
+```
+
+## Model Selection
+On each round, and then bind them into a list
+```{r model_selection}
+modeltable1<-lapply(likelists,bfcalcs)
+
+
+```
+
+## Plot marginal likelihood results from each of 3 runs
+
+plot model selection graphics (blue dots with lines) - lines denote confidence intervals
+
+```{r}
+means<-list()
+#plots<-list()
+  likes<-rbind(cbind(modeltable1[[1]],rep=1), cbind(modeltable1[[2]],rep=2), cbind(modeltable1[[3]], rep=3))
+  likes$model<-factor(likes$model, models)
+  likes<-likes[!(is.na(likes$model)),]
+  
+  #likes<-likes[which(likes$bezier.corrected > max(likes$bezier.corrected)-100),]
+  y.mean<-as.vector(by(likes$bezier.corrected,likes$model,mean))
+  y.sd<-as.vector(by(likes$bezier.corrected,likes$model,sd))
+  y.min<-y.mean-((y.sd/sqrt(3))*4.303)
+  y.max<-y.mean+((y.sd/sqrt(3))*4.303)
+
+    
+  likes.mean<-data.frame(model=factor(models,models),y.mean,y.min,y.max,y.sd)
+  
+  #l<-ggplot(data=likes, aes(x=model,y=bezier.corrected,colour=factor(rep), 
+   #                                 shape=factor(rep), size=20 ))
+  l<-ggplot(data=likes, aes(x=model,y=bezier.corrected))
+  
+  l<-l+geom_point(colour="blue", size=3)+
+    geom_pointrange(data=likes.mean,y=y.mean,ymin=y.min,ymax=y.max, size=0.5)+
+    scale_x_discrete(drop=FALSE)+
+    theme(axis.text.y = element_text(size=16),legend.position="none",axis.title.x=element_text(size=16),axis.title.y=element_blank(),plot.title=element_text(size=20))+ylab("Marginal Log-Likelihood")+
+    coord_fixed(0.1)+ coord_flip()
+  print(l)
+#  plots<-c(plots,l)
+
+
+```
+
+### Plot them
+```{r}
+library("readxl")
+library("ggplot2")
+#plot model selection graphics (blue dots with lines) - lines denote confidence intervals
+m<-c("stepping.stone.symmetric","stepping.stone.asymmetric","northward.stepping.stone","southward.stepping.stone","stepping_stone_two_parameter","island","panmixia")
+
+
+pdf(file = "thermodynamic_marginal_likelihoods_final.pdf",width=8.5,height=3)
+means<-list()
+#plots<-list()
+
+  likes<-rbind(cbind(modeltables[[1]]$stepping.stone.symmetric,rep=1), cbind(modeltables[[2]]$stepping.stone.symmetric,rep=2), cbind(modeltables[[3]]$stepping.stone.symmetric, rep=3))
+  likes$model<-factor(likes$model, m)
+  likes<-likes[!(is.na(likes$model)),]
+  
+
+  #likes<-likes[which(likes$bezier.corrected > max(likes$bezier.corrected)-100),]
+  y.mean<-as.vector(by(likes$bezier.corrected,likes$model,mean))
+  y.sd<-as.vector(by(likes$bezier.corrected,likes$model,sd))
+  y.min<-y.mean-((y.sd/sqrt(3))*4.303)
+  y.max<-y.mean+((y.sd/sqrt(3))*4.303)
+
+    
+  likes.mean<-data.frame(model=factor(m,m),y.mean,y.min,y.max,y.sd)
+
+  #l<-ggplot(data=likes, aes(x=model,y=bezier.corrected,colour=factor(rep), 
+   #                                 shape=factor(rep), size=20 ))
+  l<-ggplot(data=likes, aes(x=model,y=bezier.corrected))
+  
+  l<-l+geom_point(colour="blue", size=3)+
+    geom_pointrange(data=likes.mean,y=y.mean,ymin=y.min,ymax=y.max, size=0.5)+
+    scale_x_discrete(drop=FALSE)+
+    theme(axis.text.y = element_text(size=16),legend.position="none",axis.title.x=element_text(size=16),axis.title.y=element_blank(),plot.title=element_text(size=20))+ylab("Marginal Log-Likelihood")+
+    coord_fixed(0.1)+ coord_flip()
+  print(l)
+#  plots<-c(plots,l)
+
+dev.off()
+```
+
+
+```{r}
+library(perm)
+
+meanlikes<-list()
+permtests<-data.frame(matrix(ncol = 13, nrow = 0))
+colnames(permtests)<-c(m,"k-means p-value","Best Mean","Second Best Mean","p-value Best Mean > Second Mean", "Log Bayes Factor")
+
+  kmeans.p<-permKS(x = likes$bezier.corrected, g = likes$model, method="exact.mc")$p.value #k-means non-parametric test to compare all means
+  bestmean<-m[order(y.mean,decreasing=T)[1]] # get the highest mean
+  secondmean<-m[order(y.mean,decreasing=T)[2]] #get the second best mean
+  ttest<-permTS(x=likes$bezier.corrected[which(likes$model==bestmean)], y=likes$bezier.corrected[which(likes$model==secondmean)], alternative="greater", method="exact.mc")
+   ttest2<-permTS(x=likes$bezier.corrected[which(likes$model==bestmean)], y=likes$bezier.corrected[which(likes$model=="stepping_stone_two_parameter")], alternative="greater", method="exact.mc")
+  lbf<-2*ttest$estimate
+  
+  values<-rbind(y.mean)
+  values<-cbind(values,kmeans.p,bestmean,secondmean,ttest$p.value,lbf)
+  
+
+	bmvalue<-y.mean[which.max(y.mean)]
+	lbf<-2*(y.mean-bmvalue)
+	modelrank<-rank(-y.mean)
+	modelprob<-exp(lbf/2)/sum(exp(lbf/2),na.rm=T)
+	dfall<-cbind("Mean Bezier Corrected ML"=as.numeric(y.mean),"LBF"=as.numeric(lbf),"Rank"=as.numeric(modelrank),"Model_Probability"=as.numeric(modelprob))
+	row.names(dfall)<-models
+
+	dfall<-as.data.frame(dfall)
+```
+
+## Analyze posterior distributions
+```{r}
+library(coda)
+library(ggplot2)
+library(ggmcmc)
+library(gridExtra)
+library(reshape2)
+
+
+#a function for creating Nm vectors out of m and Theta vectors.
+migrants.per.gen<-function(x){
+  #x<-x[[1]]
+  m<-names(x)[which(grepl("M_",names(x)))] #names of m columns
+  #theta<-names(x)[which(grepl("Theta_",names(x)))] #names of theta columns
+  for(n in m){
+    t<-paste("Theta",strsplit(n,split="_")[[1]][3],sep="_")
+    x[,paste("Nm",strsplit(n,split="_")[[1]][2],strsplit(n,split="_")[[1]][3],sep="_")]<-  	x[,which(names(x)==n)]*x[,which(names(x)==t)] #this hairy little statement makes a new column named "Nm_X_Y" and then fills it by multiplying the M_X_Y column by the Theta_Y column	
+  }
+  return(x)
+}
+
+
+
+```
+	
+Loop through all 3 replicates, pull in the posteriors
+```{r}
+setwd(wd)
+
+outputdir<-file.path("./posterior_output")
+
+data.list<-list() #initialize an empty data list
+  
+  for(r in 1:3){  #loop through the 3 replicate rounds (6,7,8)
+    wd1<-file.path(wd,paste("pisaster",r,sep=""),"stepping.stone.asymmetric")
+    setwd(wd1)  #move into that species' and model directory
+    
+    print(paste("loading and processing bayesallfile for round", r))
+    data<-read.table("bayesallfile", header=T) #this may take a minute or two
+  
+    # Split the whole list into the individual replicates, so that you will
+    # have a list of data frames
+    data.list.1<-split(data,data$Replicate)
+    
+    # Subset the parameters of interest, either by rows or by columns to remove burnin and uninteresting columns
+    data.list.1<-lapply(data.list.1,subset)# by rows. 
+    #data.list.1<-lapply(data.list.1,subset,select=c(4:(length(data.list.1[[1]])-6))) #by columns.
+    
+    # calculate Nm for each row
+    data.list.2<-lapply(data.list.1,migrants.per.gen)
+    
+    # cat it onto the main list
+    data.list<-c(data.list,data.list.2)
+  }
+
+
+#convert each dataframe to an mcmc object and then convert the whole thing to an mcmc list
+  data.list.mcmc<-mcmc.list(lapply(data.list,mcmc))
+  #condense everything into a single mcmc replicate for the purposes of HPDinterval
+  data.list.allinone<-mcmc(data=do.call("rbind",data.list)) 
+  
+  #calculate statistics
+  print("calculating statistics")
+  summ<-summary(data.list.mcmc)
+  ess<-effectiveSize(data.list.mcmc)
+  gelman<-gelman.diag(data.list.mcmc,multivariate=F)
+  HPD<-HPDinterval(data.list.allinone)
+  
+  #cat the stats, man
+  allstats<-cbind(summ$statistics[,1:2],HPD,ess,gelman$psrf)
+
+  #write the stats into the directory for future reference
+  write.csv(allstats,"codastats.csv")
+  
+  # Plot the MCMC
+  print("plotting MCMC")
+  
+  data.list.plot<-lapply(data.list,subset,select=c(which(grepl("Theta_",names(data.list[[1]])) | grepl("M_",names(data.list[[1]])) | grepl("Nm_",names(data.list[[1]])) |grepl("lnPost",names(data.list[[1]])))))
+  #log transform them, since they come from an exponential prior
+  data.list.plot<-lapply(data.list.plot,log)
+  data.list.plot<-mcmc.list(lapply(data.list.plot,mcmc))
+
+  data.list.gg<-ggs(data.list.plot,burnin=F,description="Pisaster ochraceus SteppingStone Asymmetric")
+  ggmcmc(data.list.gg,plot=c("ggs_traceplot","ggs_density","ggs_Rhat"),simplify_traceplot=0.25,file="final_ggMCMC.pdf")
+
+```
+	
+### Violin Plots
+```{r}
+#read in stepping-stone order file
+steporder<-read.csv("/Users/eric/Dropbox/Crandall_tobo/scripts/step_edges_migrate.csv",header=F)
+
+
+cat("Plotting Nm Violin Plots") 
+  #isolate Nm values for violin plots
+  nmlist<-lapply(data.list,subset,select=c(which(grepl("Nm",names(data.list[[1]])))))
+  nmlistallinone<-data.frame(data=do.call("rbind",nmlist))
+ 
+  #extract the population names that were sampled for this species
+  popnames<-c("Patrick's Point","Kibesillah","Fanshell","Soberanes","Hazard","Vista")
+  #make a vector of the combos of names for Nm and m
+  stepnames<-paste(popnames[steporder[0:(2*length(popnames)-2),1]],popnames[steporder[0:(2*length(popnames)-2),2]],sep=" to ")
+  
+  
+  #melt nmlistallinone to a long data frame
+  longNm <- melt(data = nmlistallinone,
+                 measure.vars = names(nmlistallinone),
+                 variable.name = "Parameter",
+                 value.name = "Nm"
+  )
+  
+  #make a vector to color the violins by direction of gene flow
+  paramlength<-length(longNm[,1])/length(levels(longNm$Parameter)) #get the number of observations per parameter
+  direction<-rep_len(c(rep_len("south",paramlength),rep_len("north",paramlength)),length(longNm[,2]))
+  
+  violin<-ggplot(longNm, (aes(x=rev(Parameter), y=Nm, fill=direction))) + geom_violin(draw_quantiles=c(0.025,0.5,0.975))  + 
+    scale_y_log10(breaks=c(0.00001,0.0001,0.001,0.01,0.1,1,10,100,1000,10000,100000,1000000), labels=c("0.00001","0.0001","0.001","0.01","0.1","1","10","100","1,000","10,000","100,000","1,000,000"),limits=c(0.001,1000000)) +
+    scale_x_discrete(labels=rev(stepnames)) + scale_fill_manual(values=c("grey","white")) +
+    labs(x="Parameter", y="Effective Female Migrants per Generation") + coord_flip() + 
+    guides(fill=F)
+  
+   
+  
+  cat("Plotting m/mu Violin Plots") 
+  #isolate m values for violin plots
+  nmlist<-lapply(data.list,subset,select=c(which(grepl("M",names(data.list[[1]])))))
+  nmlistallinone<-data.frame(data=do.call("rbind",nmlist))
+ 
+  #extract the population names that were sampled for this species
+  popnames<-c("Patrick's Point","Kibesillah","Fanshell","Soberanes","Hazard","Vista")
+  #make a vector of the combos of names for Nm and m
+  stepnames<-paste(popnames[steporder[0:(2*length(popnames)-2),1]],popnames[steporder[0:(2*length(popnames)-2),2]],sep=" to ")
+  
+  
+  #melt nmlistallinone to a long data frame
+  longNm <- melt(data = nmlistallinone,
+                 measure.vars = names(nmlistallinone),
+                 variable.name = "Parameter",
+                 value.name = "m_mu"
+  )
+  
+  #make a vector to color the violins by direction of gene flow
+  paramlength<-length(longNm[,1])/length(levels(longNm$Parameter)) #get the number of observations per parameter
+  direction<-rep_len(c(rep_len("south",paramlength),rep_len("north",paramlength)),length(longNm[,2]))
+  
+  violin<-ggplot(longNm, (aes(x=rev(Parameter), y=m_mu, fill=direction))) + geom_violin(draw_quantiles=c(0.025,0.5,0.975))  + 
+    scale_y_log10(breaks=c(0.00001,0.0001,0.001,0.01,0.1,1,10,100,1000,10000,100000,1000000), labels=c("0.00001","0.0001","0.001","0.01","0.1","1","10","100","1,000","10,000","100,000","1,000,000"),limits=c(0.001,1000000)) +
+    scale_x_discrete(labels=rev(stepnames)) + scale_fill_manual(values=c("grey","white")) +
+    labs(x="Parameter", y="Effective Female Migrants per Generation") + coord_flip() + 
+    guides(fill=F)
+  
+  
+  cat("Plotting Theta Violin Plots") 
+  #isolate m values for violin plots
+  nmlist<-lapply(data.list,subset,select=c(which(grepl("Theta",names(data.list[[1]])))))
+  nmlistallinone<-data.frame(data=do.call("rbind",nmlist))
+ 
+  #extract the population names that were sampled for this species
+  popnames<-c("Patrick's Point","Kibesillah","Fanshell","Soberanes","Hazard","Vista")
+  #make a vector of the combos of names for Nm and m
+  stepnames<-paste(popnames[steporder[0:(2*length(popnames)-2),1]],popnames[steporder[0:(2*length(popnames)-2),2]],sep=" to ")
+  
+  
+  #melt nmlistallinone to a long data frame
+  longNm <- melt(data = nmlistallinone,
+                 measure.vars = names(nmlistallinone),
+                 variable.name = "Parameter",
+                 value.name = "Theta"
+  )
+  
+  paramlength<-length(longNm[,1])/length(levels(longNm$Parameter)) #get the number of observations per parameter
+  
+  
+  violin<-ggplot(longNm, (aes(x=Parameter, y=Theta))) + geom_violin(draw_quantiles=c(0.025,0.5,0.975))  + 
+    scale_y_log10(breaks=c(0.00001,0.0001,0.001,0.01,0.1,1), labels=c("0.00001","0.0001","0.001","0.01","0.1","1"),limits=c(0.00001,1)) +
+    scale_x_discrete(limits = rev(levels(longNm$Parameter)),  labels=rev(popnames)) +
+    labs(x="Parameter", y="Theta")  + coord_flip()  
+  
+  
+  
+```
+
+
