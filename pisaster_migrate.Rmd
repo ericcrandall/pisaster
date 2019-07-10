@@ -224,6 +224,7 @@ migrants.per.gen<-function(x){
 	
 Loop through all 3 replicates, pull in the posteriors
 ```{r}
+wd<-"/Users/eric/Datasets/pisaster/migrate_second_round/final_runs"
 setwd(wd)
 
 outputdir<-file.path("./posterior_output")
@@ -231,7 +232,7 @@ outputdir<-file.path("./posterior_output")
 data.list<-list() #initialize an empty data list
   
   for(r in 1:3){  #loop through the 3 replicate rounds (6,7,8)
-    wd1<-file.path(wd,paste("pisaster",r,sep=""),"stepping.stone.asymmetric")
+    wd1<-file.path(wd,paste("rep",r,sep=""),"Stepping Stone Symmetric")
     setwd(wd1)  #move into that species' and model directory
     
     print(paste("loading and processing bayesallfile for round", r))
@@ -279,7 +280,7 @@ data.list<-list() #initialize an empty data list
   data.list.plot<-lapply(data.list.plot,log)
   data.list.plot<-mcmc.list(lapply(data.list.plot,mcmc))
 
-  data.list.gg<-ggs(data.list.plot,burnin=F,description="Pisaster ochraceus SteppingStone Asymmetric")
+  data.list.gg<-ggs(data.list.plot,burnin=F,description="Pisaster ochraceus Stepping Stone Symmetric")
   ggmcmc(data.list.gg,plot=c("ggs_traceplot","ggs_density","ggs_Rhat"),simplify_traceplot=0.25,file="final_ggMCMC.pdf")
 
 ```
@@ -287,7 +288,7 @@ data.list<-list() #initialize an empty data list
 ### Violin Plots
 ```{r}
 #read in stepping-stone order file
-steporder<-read.csv("/Users/eric/Dropbox/Crandall_tobo/scripts/step_edges_migrate.csv",header=F)
+steporder<-read.csv("./step_edges_migrate.csv",header=F)
 
 
 cat("Plotting Nm Violin Plots") 
@@ -296,11 +297,11 @@ cat("Plotting Nm Violin Plots")
   nmlistallinone<-data.frame(data=do.call("rbind",nmlist))
  
   #extract the population names that were sampled for this species
-  popnames<-c("Patrick's Point","Kibesillah","Fanshell","Soberanes","Hazard","Vista")
+  popnames<-c("Patrick's Point","Kibesillah","Walk On Beach","Davenport","Fanshell","Soberanes","Vista Del Mar","Hazard Reef")
   #make a vector of the combos of names for Nm and m
   stepnames<-paste(popnames[steporder[0:(2*length(popnames)-2),1]],popnames[steporder[0:(2*length(popnames)-2),2]],sep=" to ")
-  
-  
+  #remove northward names because best model is symmetrical
+  stepnames<-stepnames[-c(1,3,5,7,9,11,13)]
   #melt nmlistallinone to a long data frame
   longNm <- melt(data = nmlistallinone,
                  measure.vars = names(nmlistallinone),
@@ -312,7 +313,7 @@ cat("Plotting Nm Violin Plots")
   paramlength<-length(longNm[,1])/length(levels(longNm$Parameter)) #get the number of observations per parameter
   direction<-rep_len(c(rep_len("south",paramlength),rep_len("north",paramlength)),length(longNm[,2]))
   
-  violin<-ggplot(longNm, (aes(x=rev(Parameter), y=Nm, fill=direction))) + geom_violin(draw_quantiles=c(0.025,0.5,0.975))  + 
+  violin<-ggplot(longNm, (aes(x=rev(Parameter), y=Nm))) + geom_violin(draw_quantiles=c(0.025,0.5,0.975))  + 
     scale_y_log10(breaks=c(0.00001,0.0001,0.001,0.01,0.1,1,10,100,1000,10000,100000,1000000), labels=c("0.00001","0.0001","0.001","0.01","0.1","1","10","100","1,000","10,000","100,000","1,000,000"),limits=c(0.001,1000000)) +
     scale_x_discrete(labels=rev(stepnames)) + scale_fill_manual(values=c("grey","white")) +
     labs(x="Parameter", y="Effective Female Migrants per Generation") + coord_flip() + 
@@ -325,10 +326,7 @@ cat("Plotting Nm Violin Plots")
   nmlist<-lapply(data.list,subset,select=c(which(grepl("M",names(data.list[[1]])))))
   nmlistallinone<-data.frame(data=do.call("rbind",nmlist))
  
-  #extract the population names that were sampled for this species
-  popnames<-c("Patrick's Point","Kibesillah","Fanshell","Soberanes","Hazard","Vista")
-  #make a vector of the combos of names for Nm and m
-  stepnames<-paste(popnames[steporder[0:(2*length(popnames)-2),1]],popnames[steporder[0:(2*length(popnames)-2),2]],sep=" to ")
+
   
   
   #melt nmlistallinone to a long data frame
@@ -343,7 +341,7 @@ cat("Plotting Nm Violin Plots")
   direction<-rep_len(c(rep_len("south",paramlength),rep_len("north",paramlength)),length(longNm[,2]))
   
   violin<-ggplot(longNm, (aes(x=rev(Parameter), y=m_mu, fill=direction))) + geom_violin(draw_quantiles=c(0.025,0.5,0.975))  + 
-    scale_y_log10(breaks=c(0.00001,0.0001,0.001,0.01,0.1,1,10,100,1000,10000,100000,1000000), labels=c("0.00001","0.0001","0.001","0.01","0.1","1","10","100","1,000","10,000","100,000","1,000,000"),limits=c(0.001,1000000)) +
+    
     scale_x_discrete(labels=rev(stepnames)) + scale_fill_manual(values=c("grey","white")) +
     labs(x="Parameter", y="Effective Female Migrants per Generation") + coord_flip() + 
     guides(fill=F)
@@ -354,11 +352,7 @@ cat("Plotting Nm Violin Plots")
   nmlist<-lapply(data.list,subset,select=c(which(grepl("Theta",names(data.list[[1]])))))
   nmlistallinone<-data.frame(data=do.call("rbind",nmlist))
  
-  #extract the population names that were sampled for this species
-  popnames<-c("Patrick's Point","Kibesillah","Fanshell","Soberanes","Hazard","Vista")
-  #make a vector of the combos of names for Nm and m
-  stepnames<-paste(popnames[steporder[0:(2*length(popnames)-2),1]],popnames[steporder[0:(2*length(popnames)-2),2]],sep=" to ")
-  
+ 
   
   #melt nmlistallinone to a long data frame
   longNm <- melt(data = nmlistallinone,

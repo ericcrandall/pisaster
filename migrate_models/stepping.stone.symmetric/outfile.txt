@@ -1,0 +1,106 @@
+  =============================================
+   Pisaster ochraceus                          
+  =============================================
+  MIGRATION RATE AND POPULATION SIZE ESTIMATION
+  using Markov Chain Monte Carlo simulation
+  =============================================
+  Version 3.6.4
+
+  Program started at Wed Jun  5 21:26:26 2019
+                                                   
+
+
+Options in use:
+---------------
+
+Analysis strategy is BAYESIAN INFERENCE
+
+Proposal distribution:
+Parameter group          Proposal type
+-----------------------  -------------------
+Population size (Theta)  Metropolis sampling
+Migration rate      (M)       Slice sampling
+
+
+Prior distribution (Proposal-delta will be tuned to acceptance frequence 0.440000):
+Parameter group          Prior type   Minimum    Mean(*)    Maximum    Delta
+-----------------------  ------------ ---------- ---------- ---------- ----------
+Population size (Theta)   Exp window  0.000010   0.010000  10.000000   1.000000 
+Migration rate      (M)   Exp window  0.000100  100000.000 1000000.00 100000.000
+
+
+
+Datatype: DNA sequence data
+
+Inheritance scalers in use for Thetas (specified scalars=1)
+1.00 
+[Each Theta uses the (true) ineritance scalar of the first locus as a reference]
+
+
+Pseudo-random number generator: Mersenne-Twister                                
+Random number seed (with internal timer)            347278764
+
+Start parameters:
+   First genealogy was started using a random tree
+   Theta values were generated  from guessed values
+   Theta = 0.01000
+   M values were generated from guessed values
+   M-matrix: 100000.00 [all are the same]
+
+Migration model: Arbitrary migration matrix model            
+[Legend: m = average (average over a group of Thetas or M]
+[s = symmetric M, S = symmetric 4Nm,
+ 0 = zero, and not estimated,   ]
+[* = free to vary, Thetas are on diagonal]
+   Patrick     * s 0 0 0 0 0 0 
+Kibesillah     s * s 0 0 0 0 0 
+WalkOnBeac     0 s * s 0 0 0 0 
+DavenportL     0 0 s * s 0 0 0 
+  Fanshell     0 0 0 s * s 0 0 
+ Soberanes     0 0 0 0 s * s 0 
+     Vista     0 0 0 0 0 s * s 
+    Hazard     0 0 0 0 0 0 s * 
+
+
+
+Mutation rate is constant 
+
+Markov chain settings:
+   Long chains (long-chains):                              1
+      Steps sampled (inc*samples*rep):             150000000
+      Steps recorded (sample*rep):                    300000
+   Combining over replicates:                              3
+   Static heating scheme
+      4 chains with  temperatures
+       1.00, 1.50, 3.00,100000.00
+      Swapping interval is 1
+   Burn-in per replicate (samples*inc):              5000000
+
+Print options:
+   Data file:                ../Final_Pisaster_migrate.fasta
+   Output file (ASCII text):                     outfile.txt
+   Output file (PDF):                     Pisaster_Final.pdf
+   Posterior distribution:                         bayesfile
+   All values of Post.Dist:                     bayesallfile
+   Print data:                                            No
+   Print genealogies:                                     No
+   Plot data: No                                            
+
+Summary of data:
+Title:                                    Pisaster ochraceus
+Data file:                   ../Final_Pisaster_migrate.fasta
+Datatype:                                      Sequence data
+Number of loci:                                            1
+
+Population                   Locus   Gene copies    
+----------------------------------------------------
+  1 Patrick                      1        19
+  2 Kibesillah                   1        24
+  3 WalkOnBeach                  1        18
+  4 DavenportLanding             1        16
+  5 Fanshell                     1         7
+  6 Soberanes                    1        23
+  7 Vista                        1        21
+  8 Hazard                       1         8
+    Total of all populations     1       136
+
